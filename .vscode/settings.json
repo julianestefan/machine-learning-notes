@@ -1,0 +1,32 @@
+{
+    "cSpell.words": [
+        "coef",
+        "dataframe",
+        "defaultdict",
+        "Displacy",
+        "distilbert",
+        "ents",
+        "figsize",
+        "finetuned",
+        "gensim",
+        "isalpha",
+        "itertools",
+        "nsubj",
+        "overfits",
+        "PROPN",
+        "PUNCT",
+        "pyspark",
+        "sents",
+        "sfreq",
+        "SHAP",
+        "sharex",
+        "skimage",
+        "slic",
+        "softmax",
+        "Spacy",
+        "specshow",
+        "Superpixels",
+        "wordnet",
+        "ylim"
+    ]
+}

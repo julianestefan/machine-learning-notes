@@ -1,0 +1,46 @@
+## XG boost
+
+* Library originally written in C++ 
+* Paralelizable training
+* out perform most of the single machine learning models in several ML problems
+* Is an ensemble algorithm
+
+``` python 
+# Import xgboost
+import xgboost as xgb
+
+# Create arrays for the features and the target: X, y
+X, y = churn_data.iloc[:,:-1], churn_data.iloc[:,-1]
+
+# Create the training and test sets
+X_train, X_test, y_train, y_test= train_test_split(X, y, test_size=0.2, random_state=123)
+
+# Instantiate the XGBClassifier: xg_cl
+xg_cl = xgb.XGBClassifier(objective='binary:logistic', n_estimators=10, seed=123)
+
+# Fit the classifier to the training set
+xg_cl.fit(X_train, y_train)
+
+# Predict the labels of the test set: preds
+preds = xg_cl.predict(X_test)
+
+# Compute the accuracy: accuracy
+accuracy = float(np.sum(preds==y_test))/y_test.shape[0]
+print("accuracy: %f" % (accuracy))
+```
+
+
+When to use and not
+YES
+LArge number of training samples 
+More  samples than feature  
+
+just numeric features or a mixture of numerical or categorical
+
+NOT
+* computer vision
+* Image recognition
+* Natural langauge 
+
+Size 
+Less samples than feature  

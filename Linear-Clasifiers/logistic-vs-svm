@@ -1,0 +1,9 @@
+|     | Savings | Savings |
+| -------- | ------- | ------- |
+| Classifier  | Linear    | Linear |
+| Kernel |  slow     | fast |
+| Otput    | output probabilities    | does not naturally output probabilities |
+| Multiclass    |  possible   | possible |
+| Fit    | all data affects    | support vectors affects |
+| Regularization    | L1/L2    | L2 |
+| Hyper parameters    | C, penalty, multi_class    | C, kernel, gamma |
