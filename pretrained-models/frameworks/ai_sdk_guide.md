@@ -1,72 +1,161 @@
-# Vercel AI SDK Guide
+# Vercel AI SDK Guide: From Concepts to Application
 
-This guide provides an overview of the Vercel AI SDK, focusing on its core concepts, model integration, and building interactive UI components based on the provided documentation.
+**Goal:** This guide is designed as an educational resource to help you understand and effectively use the Vercel AI SDK. We'll go beyond just documenting features and focus on *why* they exist, *how* they connect, and *when* to use them to build powerful AI-powered applications.
 
-## 1. Introduction to Vercel AI SDK
+## 1. Introduction: Why the Vercel AI SDK?
 
-The Vercel AI SDK is a TypeScript toolkit designed to help developers build AI-powered applications, particularly integrating Large Language Models (LLMs) into frameworks like React, Next.js, Vue, Svelte, and Node.js.
+**Learning Objectives:** By the end of this section, you should be able to:
+*   Explain the main problems the Vercel AI SDK aims to solve for developers.
+*   Identify the core goals and key components of the SDK.
+*   Understand the value proposition for building AI applications with this toolkit.
+
+Building AI features, especially those involving Large Language Models (LLMs), can feel complex. You might face challenges like:
+*   Interacting with different LLM providers (OpenAI, Anthropic, Cohere, etc.), each with slightly different APIs.
+*   Writing repetitive boilerplate code to handle streaming responses for interactive UIs like chatbots.
+*   Going beyond simple text replies to generate structured data or trigger actions.
+
+The Vercel AI SDK is a TypeScript toolkit designed to simplify these challenges. Think of it as a helpful layer that sits between your application and the AI models, making integration smoother and faster.
 
 **Core Goals:**
 
-*   **Abstract Away Provider Differences:** Provides a unified API to interact with various LLM providers, simplifying the process of switching between models.
-*   **Simplify UI Development:** Eliminates boilerplate code for building interactive AI experiences like chatbots.
-*   **Enable Rich Interactions:** Allows developers to go beyond simple text output and generate interactive components. 
+*   **Abstract Away Provider Differences:** Provides a consistent, unified way (`generateText`, `streamText`, etc.) to talk to various LLMs, making it easier to experiment or switch providers without rewriting large parts of your code.
+*   **Simplify UI Development:** Offers pre-built components and hooks (like `useChat`, `useCompletion`) primarily for popular frontend frameworks (React, Next.js, Svelte, Vue) to handle the complexities of streaming, state management, and user input for common AI interfaces.
+*   **Enable Rich Interactions:** Goes beyond basic text generation to support advanced features like tool calling (letting the LLM use your functions), structured data generation (getting reliable JSON output), and multimodal capabilities.
 
 **Key Components:**
 
-*   **AI SDK Core:** Provides the central, unified API for calling LLMs.
-*   **AI SDK UI:** Offers abstractions (primarily hooks) for building chat, completion, and assistant interfaces in frontend frameworks.
+*   **AI SDK Core (`ai` package):** The foundation. Provides the core functions (`generateText`, `streamText`, `generateObject`, `embed`, etc.) for interacting with LLMs from any JavaScript environment (backend or frontend). This is where the provider unification happens.
+*   **AI SDK UI (`@ai-sdk/react`, `@ai-sdk/vue`, etc.):** Framework-specific hooks and components built *on top of* AI SDK Core to rapidly build frontend experiences. Handles state, streaming, and form submission for you.
 
-## 2. Core Concepts: Unified API
+We'll explore these components throughout the guide, starting with the core concepts.
 
-AI SDK Core allows you to interact with different LLMs using consistent functions like `generateText`.
+## 2. Core Concepts: The Unified API
+
+**Learning Objectives:** By the end of this section, you should be able to:
+*   Understand the benefit of using a unified API for LLM interactions.
+*   Use the `generateText` function for a basic LLM call.
+*   Recognize how to specify different models within the same function call structure.
+
+The central idea of the AI SDK Core is provider-agnostic interaction. Instead of learning the specific request/response format for OpenAI, then another for Anthropic, and another for Groq, you primarily use a standard set of functions provided by the `ai` package.
+
+The most fundamental function is `generateText`. It handles sending your prompt to the specified model provider and returning the generated text.
+
+**The Problem:** Without the SDK, calling different models requires different setup and function calls.
+**The SDK Solution:** Use `generateText` and simply change the `model` parameter.
 
 **Example: Generating Text with OpenAI GPT-4.5**
 
-```typescript
-import { generateText } from 'ai';
-import { openai } from '@ai-sdk/openai';
+Let's ask OpenAI's GPT-4.5 model to explain something.
 
+```typescript
+// Assume this is in a Node.js environment or backend route
+import { generateText } from 'ai';
+import { openai } from '@ai-sdk/openai'; // 1. Import the specific provider
+
+// 2. Instantiate the desired model from the provider
+const model = openai('gpt-4.5-preview');
+
+// 3. Call the unified generateText function
 const { text } = await generateText({
-  model: openai('gpt-4.5-preview'), // Specify the OpenAI model
-  prompt: 'Explain the concept of quantum entanglement.',
+  model: model, // Pass the instantiated model
+  prompt: 'Explain the concept of quantum entanglement in simple terms.',
 });
 
-console.log(text);
+console.log(text); // Output the LLM's response
 ```
+([2])
 
 **Example: Generating Text with DeepSeek R1**
 
-```typescript
-import { deepseek } from '@ai-sdk/deepseek';
-import { generateText } from 'ai';
+Now, let's ask the same question but use DeepSeek's `deepseek-reasoner` model. Notice how little the core logic changes:
 
-const { reasoning, text } = await generateText({
-  model: deepseek('deepseek-reasoner'), // Specify the DeepSeek model
-  prompt: 'Explain quantum entanglement.',
+```typescript
+// Assume this is in a Node.js environment or backend route
+import { deepseek } from '@ai-sdk/deepseek'; // 1. Import the DeepSeek provider
+import { generateText } from 'ai'; // Keep using the same core function
+
+// 2. Instantiate the DeepSeek model
+const model = deepseek('deepseek-reasoner');
+
+// 3. Call the same generateText function
+const { reasoning, text } = await generateText({ // Note: DeepSeek might return 'reasoning' too
+  model: model,
+  prompt: 'Explain quantum entanglement in simple terms.',
 });
 
-console.log('Reasoning:', reasoning);
+// Some models provide extra information, like reasoning steps
+if (reasoning) console.log('Reasoning:', reasoning);
 console.log('Text:', text);
 ```
+([1])
 
-## 3. LLM Provider Integration
+The key takeaway is the consistency. The `generateText` function remains the same; only the provider import and model instantiation change. This significantly speeds up experimentation and reduces vendor lock-in.
 
-The SDK supports various providers. Switching between them involves changing the provider import and the model instance.
+## 3. LLM Provider Integration: Plugging in Models
 
-**Example: Switching to DeepSeek via Fireworks**
+**Learning Objectives:** By the end of this section, you should be able to:
+*   Identify several LLM providers supported by the SDK.
+*   Understand the pattern for installing and importing provider-specific packages.
+*   Recognize how models hosted on platforms like Fireworks or Groq can be accessed.
+
+The Vercel AI SDK achieves its unified API through dedicated provider packages. To use a specific LLM provider, you typically need to:
+
+1.  **Install the Provider Package:** e.g., `npm install @ai-sdk/openai`, `npm install @ai-sdk/anthropic`, `npm install @ai-sdk/google`.
+2.  **Import the Provider:** e.g., `import { openai } from '@ai-sdk/openai';`.
+3.  **Instantiate the Model:** Create a model instance using the imported provider, specifying the model ID: `openai('gpt-4o-mini')`.
+
+**Supported Providers (Examples from Docs):**
+
+The SDK supports a growing list of providers. Here are a few examples covered in the documentation:
+
+*   **OpenAI:** `@ai-sdk/openai` (e.g., `gpt-4.5-preview`, `gpt-4o-mini`) ([2])
+*   **DeepSeek:** `@ai-sdk/deepseek` (e.g., `deepseek-reasoner`) ([1])
+*   **Fireworks:** `@ai-sdk/fireworks` - Platform hosting various open-source models. ([1])
+*   **Groq:** `@ai-sdk/groq` - Platform known for high-speed inference on specific models. ([1])
+*   *Others include Anthropic, Google, Cohere, Mistral, etc. Check the official Vercel AI SDK docs for the full list.*
+
+**Using Models via Hosting Platforms (Fireworks/Groq):**
+
+Sometimes, you access a model (like DeepSeek's) *through* another platform that hosts it. The pattern remains similar, but you use the hosting platform's provider package and specify the model ID as defined by that platform.
+
+**Example: Accessing DeepSeek via Fireworks**
 
 ```typescript
-import { fireworks } from '@ai-sdk/fireworks';
+import { fireworks } from '@ai-sdk/fireworks'; // Use Fireworks provider
+import {
+  generateText,
+  wrapLanguageModel,         // We'll touch on middleware later (Section 11)
+  extractReasoningMiddleware,
+} from 'ai';
+
+// Middleware is sometimes used to enhance models, like extracting reasoning tags
+const enhancedModel = wrapLanguageModel({
+  // Instantiate Fireworks, pointing to the DeepSeek model ID *on Fireworks*
+  model: fireworks('accounts/fireworks/models/deepseek-r1'),
+  middleware: extractReasoningMiddleware({ tagName: 'think' }), // Specific to models outputting <think> tags
+});
+
+const { reasoning, text } = await generateText({
+  model: enhancedModel,
+  prompt: 'Explain quantum entanglement.',
+});
+```
+([1])
+
+**Example: Accessing a Model via Groq**
+
+```typescript
+import { groq } from '@ai-sdk/groq'; // Use Groq provider
 import {
   generateText,
   wrapLanguageModel,
   extractReasoningMiddleware,
 } from 'ai';
 
-// Middleware to extract reasoning tokens
+// As above, middleware can enhance the base model
 const enhancedModel = wrapLanguageModel({
-  model: fireworks('accounts/fireworks/models/deepseek-r1'), // Use Fireworks provider
+  // Instantiate Groq, pointing to the model ID *on Groq*
+  model: groq('deepseek-r1-distill-llama-70b'), // Example ID on Groq
   middleware: extractReasoningMiddleware({ tagName: 'think' }),
 });
 
@@ -75,58 +164,64 @@ const { reasoning, text } = await generateText({
   prompt: 'Explain quantum entanglement.',
 });
 ```
+([1](https://sdk.vercel.ai/docs/guides/r1))
 
-**Example: Switching to DeepSeek via Groq**
+Switching providers or accessing models through different platforms involves changing the import and the model identifier string, while the core `generateText` (or `streamText`, etc.) call remains consistent.
 
-```typescript
-import { groq } from '@ai-sdk/groq';
-import {
-  generateText,
-  wrapLanguageModel,
-  extractReasoningMiddleware,
-} from 'ai';
+## 4. Embeddings: Understanding Semantic Meaning
 
-// Middleware to extract reasoning tokens
-const enhancedModel = wrapLanguageModel({
-  model: groq('deepseek-r1-distill-llama-70b'), // Use Groq provider
-  middleware: extractReasoningMiddleware({ tagName: 'think' }),
-});
+**Learning Objectives:** By the end of this section, you should be able to:
+*   Explain what embeddings are and why they are useful in AI applications.
+*   Generate embeddings for single and multiple text values using `embed` and `embedMany`.
+*   Calculate the semantic similarity between two embeddings using `cosineSimilarity`.
+*   Identify key configuration options for embedding generation.
 
-const { reasoning, text } = await generateText({
-  model: enhancedModel,
-  prompt: 'Explain quantum entanglement.',
-});
-```
+**The "Why": Going Beyond Keywords**
 
-## 4. Embeddings
+Traditional search often relies on keywords. If you search for "hot dog," you might miss documents talking about "frankfurters." LLMs and AI systems often need a deeper understanding of *meaning* or *semantic similarity*.
 
-Embeddings represent text or other data as numerical vectors, allowing for semantic understanding and similarity calculations. They are fundamental for tasks like RAG and semantic search
+**Embeddings** are the solution. They are numerical representations (vectors) of data (like text). The key idea is that pieces of text with similar meanings will have embedding vectors that are "close" to each other in multi-dimensional space.
+
+**Use Cases:** Embeddings are fundamental for:
+*   **Retrieval Augmented Generation (RAG):** Finding documents relevant to a user's query to provide context to an LLM (Section 9).
+*   **Semantic Search:** Searching based on meaning, not just keywords.
+*   **Recommendations:** Finding items similar to ones a user liked.
+*   **Clustering:** Grouping similar pieces of text together.
+
+([9](https://sdk.vercel.ai/docs/ai-sdk-core/embeddings))
+
 ### 4.1. Generating Embeddings
 
-AI SDK Core provides functions to generate embeddings for single values or batches of values.
+AI SDK Core provides dedicated functions for generating embeddings, using specialized embedding models from providers.
 
-**Single Value (`embed`):**
+**Simplest Case: Embedding a Single Value (`embed`)**
+
+Use `embed` to get the vector representation for a single piece of text.
 
 ```typescript
 import { embed } from 'ai';
 import { openai } from '@ai-sdk/openai';
 
-// Select an embedding model from a provider
+// 1. Select an *embedding model* from a provider
+// Note: These are different from text generation models (like gpt-4o-mini)
 const embeddingModel = openai.embedding('text-embedding-3-small');
 
-// Generate embedding for a single string
+// 2. Call 'embed' with the model and the text value
 const { embedding, usage } = await embed({
   model: embeddingModel,
   value: 'sunny day at the beach',
 });
 
+// 'embedding' is an array of numbers (the vector)
 console.log('Embedding Vector (first 5 values):', embedding.slice(0, 5));
-console.log('Token Usage:', usage); // e.g., { tokens: 6 }
+// Embedding models also consume tokens
+console.log('Token Usage:', usage); // e.g., { embeddingTokens: 6 }
 ```
+([9](https://sdk.vercel.ai/docs/ai-sdk-core/embeddings))
 
-**Batch Embedding (`embedMany`):**
+**Common Case: Embedding Multiple Values (`embedMany`)**
 
-Efficiently embed multiple values at once, often used when indexing documents for RAG.
+Often, you need to embed many pieces of text at once, for example, when indexing documents for RAG. `embedMany` is optimized for this.
 
 ```typescript
 import { openai } from '@ai-sdk/openai';
@@ -140,53 +235,79 @@ const valuesToEmbed = [
   'snowy night in the mountains',
 ];
 
-// 'embeddings' is an array of number[] vectors, in the same order as input
+// 'embeddings' is an array of number[] vectors, one for each input value
 const { embeddings, usage } = await embedMany({
   model: embeddingModel,
   values: valuesToEmbed,
 });
 
 console.log(`Generated ${embeddings.length} embeddings.`);
-console.log('Total Token Usage:', usage);
+console.log('Total Token Usage:', usage); // Aggregated usage
 ```
+([9](https://sdk.vercel.ai/docs/ai-sdk-core/embeddings))
 
-### 4.2. Calculating Similarity
+### 4.2. Calculating Similarity: How "Close" Are Meanings?
 
-Use the `cosineSimilarity` helper to measure the semantic similarity between two embedding vectors (closer to 1 means more similar).
+Once you have embeddings, how do you measure similarity? A common method is **Cosine Similarity**. It measures the angle between two vectors.
+
+*   A value close to 1 means the vectors point in very similar directions (high semantic similarity).
+*   A value close to 0 means they are roughly orthogonal (low similarity).
+*   A value close to -1 means they point in opposite directions (opposite meanings).
+
+The AI SDK provides a `cosineSimilarity` helper.
 
 ```typescript
 import { openai } from '@ai-sdk/openai';
-import { cosineSimilarity, embedMany } from 'ai';
+import { cosineSimilarity, embedMany } from 'ai'; // Import the helper
 
 const embeddingModel = openai.embedding('text-embedding-3-small');
 
+// Get embeddings for related and unrelated terms
 const { embeddings } = await embedMany({
   model: embeddingModel,
-  values: ['hot dog', 'sunny day at the beach', 'frankfurter'],
+  values: [
+      'hot dog',                 // Index 0
+      'sunny day at the beach',  // Index 1
+      'frankfurter'              // Index 2 (semantically similar to 'hot dog')
+   ],
 });
 
+// Calculate similarity between 'hot dog' and 'beach' (expect low)
 const similarityHotDogBeach = cosineSimilarity(embeddings[0], embeddings[1]);
+
+// Calculate similarity between 'hot dog' and 'frankfurter' (expect high)
 const similarityHotDogFrank = cosineSimilarity(embeddings[0], embeddings[2]);
 
-console.log(`Similarity (Hot Dog vs Beach): ${similarityHotDogBeach.toFixed(4)}`);
-console.log(`Similarity (Hot Dog vs Frankfurter): ${similarityHotDogFrank.toFixed(4)}`);
+console.log(`Similarity (Hot Dog vs Beach): ${similarityHotDogBeach.toFixed(4)}`); // e.g., 0.78... (example value)
+console.log(`Similarity (Hot Dog vs Frankfurter): ${similarityHotDogFrank.toFixed(4)}`); // e.g., 0.95... (example value)
 ```
+([9](https://sdk.vercel.ai/docs/ai-sdk-core/embeddings))
+*Note: Actual similarity values depend heavily on the specific embedding model used.*
 
 ### 4.3. Settings and Configuration
 
-Both `embed` and `embedMany` support settings like:
-*   `maxRetries`: Control retry attempts on failure (default: 2).
-*   `abortSignal`: Abort the request or set a timeout.
-*   `headers`: Add custom HTTP headers to the request.
+Like other core functions, `embed` and `embedMany` allow configuration:
+*   `maxRetries`: How many times to retry if the API call fails (default: 2).
+*   `abortSignal`: Pass an `AbortController` signal to cancel the request (e.g., for timeouts).
+*   `headers`: Add custom HTTP headers (useful for authentication or tracing).
 
 ```typescript
-// Example: Disabling retries
+// Example: Disabling retries for a single embedding call
 const { embedding } = await embed({
   model: embeddingModel,
   value: 'some text',
-  maxRetries: 0,
+  maxRetries: 0, // Don't retry on failure
 });
 ```
+([9](https://sdk.vercel.ai/docs/ai-sdk-core/embeddings))
+
+### 4.4. Available Models
+
+Choosing the right embedding model impacts performance and cost. Different models produce vectors of different lengths (dimensions) and have different strengths. The SDK supports models from various providers.
+
+**Recommendation:** Refer to the official AI SDK documentation on Embeddings ([9](https://sdk.vercel.ai/docs/ai-sdk-core/embeddings)) for a current list of supported models (like OpenAI's `text-embedding-3-small`/`large`, Google's `text-embedding-004`, Mistral, Cohere, etc.) and their dimensions. Consistency is key: use the same embedding model for indexing documents and for embedding user queries in RAG systems.
+
+---
 
 ## 5. Generating Structured Data: Getting Reliable JSON Output
 
@@ -812,545 +933,6 @@ These hooks provide powerful building blocks for creating engaging and interacti
 *   Control when and how an agent uses tools via the `toolChoice` parameter.
 
 **The "Why": Beyond Conversation and Generation**
-
-So far, we've seen how to generate text, structured data, and build interactive UIs. But what if you need the AI to do more than just *respond*? What if you need it to **take actions**, interact with external systems, or solve problems that require multiple steps and access to real-time information or specific capabilities?
-
-This is where **agentic systems** come in. An "agent" in this context is an AI system designed to:
-
-1.  **Understand Intent:** Figure out the user's goal.
-2.  **Plan:** Break down the goal into smaller steps (potentially involving different tools or information sources).
-3.  **Act:** Execute those steps, often by calling tools (functions, APIs, database queries).
-4.  **Observe:** Analyze the results of its actions.
-5.  **Reason:** Decide the next step based on observations, potentially iterating until the goal is achieved.
-
-**Analogy:** Think of a simple chatbot like a knowledgeable librarian who can answer questions based on the books they have (`generateText`). An agent is more like a research assistant who can not only consult books but also use a calculator (`calculatorTool`), search online databases (`searchTool`), summarize findings, and compile a structured report (`answerTool`), potentially performing these actions in sequence until the research task is complete.
-
-The Vercel AI SDK provides the core functionalities (`generateText`, `streamText`, `tool`, `maxSteps`) to build these more sophisticated agentic systems.
-
-### 7.1. Agent Building Blocks: From Simple to Complex
-
-Agents are constructed by combining fundamental capabilities:
-
-1.  **Single-Step LLM Generation:** The simplest form. A single call to `generateText` or `generateObject`. Suitable for direct tasks like classification, summarization, or simple Q&A where no external action or multi-step reasoning is needed.
-    *   *Use Case:* Classifying customer feedback sentiment.
-2.  **Tool Usage (Single Step):** Empowering the LLM with tools. A call to `generateText` or `streamText` where the model *might* choose to call one of the provided `tools` to fulfill the request in a single turn.
-    *   *Use Case:* Answering "What's the weather in London?" by calling a weather API tool. Calculating "5! * 3" using a calculator tool.
-3.  **Multi-Step Tool Usage:** The core of more complex agents. Allowing the LLM to make a *sequence* of tool calls (and reasoning steps) across multiple turns automatically, managed by the SDK using the `maxSteps` parameter. This enables solving problems where the path isn't known beforehand.
-    *   *Use Case:* Planning a trip, which might involve calling tools to find flights, check hotel availability, and then summarize the plan. Debugging code by analyzing errors, searching for solutions, and proposing fixes iteratively.
-4.  **Multi-Agent Systems (Advanced):** For highly complex tasks, you might orchestrate multiple specialized agents. One agent could act as a router, delegating sub-tasks to other agents with specific expertise or tools. While possible to build using the SDK's core functions, this pattern requires more custom application logic.
-    *   *Use Case:* A complex financial analysis system where one agent retrieves market data, another performs technical analysis, and a third generates a report.
-
-### 7.2. Common Agent Patterns (Application Logic)
-
-While the SDK provides the building blocks, you often structure your agent's workflow using application-level patterns:
-
-*   **Sequential Processing (Chains):** Steps executed in a fixed order. Output A -> Process B -> Output C. Simple and predictable.
-    *   *SDK Implementation:* Multiple separate calls to `generateText`/`generateObject`, passing outputs as inputs.
-    *   *Use Case:* Generate draft email -> Evaluate tone using `generateObject` -> Refine draft based on evaluation.
-*   **Routing:** Use an initial LLM call (often `generateObject`) to decide which path, model, prompt, or toolset to use next.
-    *   *SDK Implementation:* An initial `generateObject` call determines parameters for subsequent `generateText`/`streamText` calls.
-    *   *Use Case:* Classify user intent (e.g., 'Sales Question', 'Support Issue') and route to different specialized prompts or tool-equipped agents.
-*   **ReAct (Reasoning and Acting):** A common pattern where the LLM explicitly reasons about the next step, decides on an action (often a tool call), executes it, observes the result, and repeats. The SDK's multi-step tool usage (`maxSteps`) automates a form of this loop.
-*   **Evaluator/Refinement Loops:** Use one LLM call to generate an output and another (potentially `generateObject` with criteria) to evaluate it. Feed the evaluation back to the generator for refinement until a quality threshold is met.
-    *   *SDK Implementation:* A loop in your application code calling `generateText` and `generateObject` iteratively.
-    *   *Use Case:* Generating code, then using another LLM call to check for errors or adherence to style guides, then refining the code.
-
-### 7.3. Choosing Your Agent Design
-
-Consider these trade-offs:
-
-*   **Flexibility vs. Control:** More steps and tool autonomy (`maxSteps > 1`) offer flexibility but less predictability. Single steps or fixed chains offer more control.
-*   **Complexity & Cost:** Multi-step agents are powerful but involve more LLM calls (higher latency and cost) and complexity.
-*   **Error Handling:** Autonomous agents require robust error handling within tools and potentially logic to recover from failed steps.
-*   **Maintainability:** Start simple. Introduce tools and multi-step execution only when necessary.
-
-**Recommendation:** Begin with the simplest approach that meets the need (single step, maybe one tool). Incrementally add multi-step execution (`maxSteps`) or more complex patterns if required.
-
-### 7.4. Defining Tools: Giving the LLM Capabilities
-
-Tools are the core mechanism for agents to interact with the world beyond text generation.
-
-*   **Definition:** Use the `tool` helper function from the `ai` package.
-*   **`description` (Crucial!):** Explain clearly and concisely *what the tool does* and *when the LLM should use it*. Provide examples if helpful. This is the LLM's primary guide.
-*   **`parameters` (Schema):** Define the expected inputs using a Zod schema (`zod`) or JSON schema (`jsonSchema`). Include `.describe()` for each parameter to clarify its purpose for the LLM. Use `z.object({})` for tools with no arguments.
-*   **`execute` (Optional but common):** An `async` function containing the tool's logic. It receives the parameters (validated against the schema) and should return the result the LLM needs. If `execute` is omitted, the SDK will return the tool call details, and your application logic must handle the execution.
-
-```typescript
-import { tool } from 'ai';
-import { z } from 'zod'; // Make sure to install Zod: npm install zod
-import * as mathjs from 'mathjs'; // Example dependency: npm install mathjs
-// Assume fetchWeatherData is an external function you've defined elsewhere
-// import { fetchWeatherData } from './api/weather';
-
-// Example: Calculator Tool
-export const calculatorTool = tool({
-  // Why: Clearly state the tool's purpose and usage context.
-  description:
-    'Calculates the result of a mathematical expression. ' +
-    'Use this for arithmetic, trigonometry, etc. ' +
-    "Example expressions: '1.2 * (2 + 4.5)', '12.7 cm to inch', 'sin(45 deg) ^ 2'.",
-  parameters: z.object({
-    // Why: Define expected input with type and description.
-    expression: z.string().describe('The mathematical expression to evaluate. Ensure it\'s a valid expression for mathjs.'),
-  }),
-  // Why: The function that performs the actual work when the tool is called.
-  execute: async ({ expression }) => {
-    console.log(`Executing calculator tool with expression: ${expression}`);
-    try {
-      // Safely evaluate the expression
-      const result = mathjs.evaluate(expression);
-      // Return the result to the LLM
-      return result;
-    } catch (error) {
-      // Handle potential errors during evaluation and inform the LLM
-      console.error("Calculator tool error:", error);
-      return `Error evaluating expression "${expression}": ${error instanceof Error ? error.message : 'Unknown error'}`;
-    }
-  },
-});
-
-// Example: Weather Tool (execute handled by application or omitted for now)
-export const weatherTool = tool({
-  description: 'Gets the current weather for a specific location.',
-  parameters: z.object({
-    location: z.string().describe('The city and state, e.g., San Francisco, CA'),
-    unit: z.enum(['celsius', 'fahrenheit']).default('celsius').describe("Temperature unit")
-  }),
-  // execute: async ({ location, unit }) => {
-  //   console.log(`Fetching weather for ${location} in ${unit}`);
-  //   return await fetchWeatherData(location, unit); // Call your API logic
-  // }
-  // If execute is omitted, the LLM call will return a toolCall object
-  // with toolName 'weather' and args { location: '...', unit: '...' }
-});
-```
-
-### 7.5. Using Tools with `generateText` and `streamText`
-
-Pass your defined tools to the LLM call via the `tools` parameter. This is an object where keys are the names the LLM will use to refer to the tool, and values are the tool definitions created with the `tool` helper.
-
-```typescript
-import { generateText } from 'ai';
-import { openai } from '@ai-sdk/openai';
-import { calculatorTool, weatherTool } from './tools'; // Assume tools are imported
-
-const model = openai('gpt-4o-mini'); // Choose a model good at tool use
-
-async function askWithTools(prompt: string) {
-  console.log(`Asking: ${prompt}`);
-  const { text, toolCalls, toolResults, finishReason } = await generateText({
-    model: model,
-    // Provide the tools the LLM can use
-    tools: {
-      calculate: calculatorTool, // LLM refers to this tool as 'calculate'
-      getCurrentWeather: weatherTool // LLM refers to this as 'getCurrentWeather'
-    },
-    prompt: prompt,
-  });
-
-  // Analyze the result:
-  console.log('LLM Finish Reason:', finishReason); // 'stop', 'tool-calls'
-  console.log('LLM Text Response:', text); // Text generated by the LLM (might be empty if only tools were called)
-
-  if (toolCalls?.length) {
-    console.log('LLM Tool Calls:', toolCalls);
-    // Example: [{ toolCallId: '...', toolName: 'calculate', args: { expression: '2+2' } }]
-    // If tools had no 'execute', your application logic would run them here.
-  }
-
-  if (toolResults?.length) {
-    console.log('Tool Execution Results:', toolResults);
-    // Example: [{ toolCallId: '...', toolName: 'calculate', result: 4 }]
-    // Populated if the tool definition included an 'execute' function that ran.
-  }
-}
-
-// Example where the LLM likely uses the calculator
-askWithTools("What is the result of log10(100) * 5?");
-
-// Example where the LLM likely calls the weather tool (if execute were defined)
-// askWithTools("What's the weather like in Paris in fahrenheit?");
-```
-
-### 7.6. Multi-Step Tool Usage: Solving Complex Problems (`maxSteps`)
-
-**The "Why":** Many problems can't be solved in one shot. They require a sequence of actions, where the result of one step informs the next. Planning a trip, debugging code, or complex calculations often fall into this category. The exact sequence might not be known beforehand.
-
-**The Solution:** The `maxSteps` parameter in `generateText` and `streamText` enables the LLM to perform multiple reasoning steps and tool calls autonomously within a single SDK call.
-
-**Analogy:** It's like giving your research assistant (the LLM) permission to not just use the calculator once, but to perform a series of calculations, lookups, or other tool actions as needed to arrive at the final answer, up to a certain limit (`maxSteps`).
-
-**The Automatic Workflow:**
-1.  Your initial prompt is sent to the LLM.
-2.  LLM Response:
-    *   If it's just text: The process stops, and the text is returned.
-    *   If it includes a `toolCall` for a tool *with* an `execute` function:
-        a.  The SDK pauses LLM generation.
-        b.  The SDK calls your tool's `execute` function with the arguments provided by the LLM.
-        c.  The SDK sends the `toolResult` back to the LLM as context for the *next* step.
-        d.  The LLM continues, now aware of the tool's result.
-    *   If it includes a `toolCall` for a tool *without* an `execute` function: The process stops, returning the `toolCall` details for your application to handle.
-3.  Looping: If a tool with `execute` was called, the process loops back to Step 2 (LLM generates based on new context).
-4.  Termination: The loop stops when:
-    *   The LLM generates only text.
-    *   The `maxSteps` limit (counting LLM generation turns + tool execution turns) is reached.
-    *   A tool *without* `execute` is called.
-    *   An error occurs.
-
-```typescript
-import { z } from 'zod';
-import { generateText, tool } from 'ai';
-import { openai } from '@ai-sdk/openai';
-import * as mathjs from 'mathjs'; // Requires: npm install mathjs
-
-const model = openai('gpt-4o-mini');
-const calculator = tool({
-  description: 'Evaluate mathematical expressions.',
-  parameters: z.object({ expression: z.string() }),
-  execute: async ({ expression }) => {
-     console.log(`   [Calculator executing: ${expression}]`);
-     return mathjs.evaluate(expression);
-  }
-});
-
-async function solveMultiStepProblem(prompt: string) {
-  console.log(`Solving multi-step: ${prompt}`);
-  const { text, toolCalls, toolResults, finishReason, usage, steps } = await generateText({
-    model: model,
-    tools: {
-      calculator: calculator // Provide the tool with its execute function
-    },
-    maxSteps: 5, // Allow up to 5 steps (LLM calls + tool executions)
-    system: 'You solve math problems step-by-step. Use the calculator when needed. Explain your final answer.',
-    prompt: prompt,
-  });
-
-  console.log('\n--- Multi-Step Result ---');
-  console.log('Final Text:', text); // The final text output from the LLM
-  console.log('Finish Reason:', finishReason); // e.g., 'stop', 'max-steps', 'tool-calls' (if final step was a call)
-  console.log('Total Usage:', usage);
-  console.log('-----------------------');
-
-  // You can also inspect the intermediate steps (see 7.6.2)
-  // console.log('\nIntermediate Steps:', steps);
-}
-
-// Example requiring multiple calculation steps
-solveMultiStepProblem("A company's revenue is $10,000. Cost of Goods Sold is $4,500. Operating Expenses are $2,000. What is the net profit margin percentage?");
-// Expected flow:
-// 1. LLM asks calculator for 10000 - 4500 (Gross Profit) -> Result: 5500
-// 2. LLM asks calculator for 5500 - 2000 (Net Profit) -> Result: 3500
-// 3. LLM asks calculator for (3500 / 10000) * 100 (Margin %) -> Result: 35
-// 4. LLM generates final text explaining the result is 35%.
-```
-
-#### 7.6.1. Structured Final Answers (`toolChoice: 'required'` + Answer Tool)
-
-**The "Why":** Sometimes, especially after a multi-step process, you don't want just a text explanation; you need the agent's final answer in a reliable, structured format (JSON), similar to `generateObject` but at the *end* of an agentic workflow.
-
-**The Solution:** Define a special "answer tool" whose `parameters` schema matches your desired final JSON structure. Crucially, **do not provide an `execute` function** for this tool. Then, in your `generateText` call:
-1.  Include the answer tool in the `tools` list alongside operational tools (like `calculator`).
-2.  Set `toolChoice: 'required'`.
-
-This forces the LLM's *very last step* to be a call to one of the provided tools. By carefully prompting the LLM to use the specific "answer tool" when it has finished its reasoning and calculations, you guide it to structure its final output according to your schema. The result will be in the `toolCalls` array.
-
-```typescript
-import { z } from 'zod';
-import { generateText, tool } from 'ai';
-import { openai } from '@ai-sdk/openai';
-// Assume calculator tool is defined as above
-
-// 1. Define the schema for the final structured answer
-const calculationAnswerSchema = z.object({
-  reasoningSteps: z.array(
-    z.object({
-      stepDescription: z.string(),
-      calculation: z.string().optional(), // e.g., "10000 - 4500"
-      result: z.union([z.string(), z.number()]).optional(), // e.g., 5500
-    }),
-  ).describe("Step-by-step reasoning and calculations performed."),
-  finalAnswer: z.number().describe("The final numerical answer."),
-  explanation: z.string().describe("Brief textual explanation of the result and process."),
-});
-
-// 2. Define the 'answer' tool with the schema but NO execute function
-const finalAnswerTool = tool({
-  description: 'Use this tool ONLY to provide the final answer, reasoning steps, calculations, and explanation once the problem is fully solved.',
-  parameters: calculationAnswerSchema,
-  // NO 'execute' - calling this tool terminates the agent loop successfully.
-});
-
-async function solveAndStructure(prompt: string) {
-  const model = openai('gpt-4o-mini'); // Model good at tool use
-
-  console.log(`Solving and structuring: ${prompt}`);
-  const { text, toolCalls, finishReason, steps } = await generateText({
-    model: model,
-    tools: {
-      // Provide operational tools...
-      calculator: calculator,
-      // ...and the final answer structuring tool
-      provideFinalAnswer: finalAnswerTool // LLM refers to it by this name
-    },
-    // 3. Force the final step to be a tool call
-    toolChoice: 'required',
-    maxSteps: 10, // Allow enough steps for calculation and final structuring
-    // 4. Prompt instructs use of calculator AND the final answer tool
-    system: `Solve the math problem step-by-step. Use the 'calculator' tool for all calculations.
-             When you have the final answer and all steps, you MUST call the 'provideFinalAnswer' tool with the detailed steps, calculations, final numeric answer, and a textual explanation. Do not provide the final answer in plain text.`,
-    prompt: prompt,
-  });
-
-  console.log('\n--- Structured Answer Result ---');
-  console.log('Finish Reason:', finishReason); // Should ideally be 'tool-calls'
-
-  // 5. Extract the structured answer from the toolCalls array
-  const answerCall = toolCalls?.find(call => call.toolName === 'provideFinalAnswer');
-
-  if (answerCall) {
-    // The validated arguments of the 'provideFinalAnswer' call ARE the structured result
-    const structuredOutput = answerCall.args;
-    console.log('Structured Answer Extracted:');
-    console.log('  Final Numeric Answer:', structuredOutput.finalAnswer);
-    console.log('  Explanation:', structuredOutput.explanation);
-    console.log('  Reasoning Steps:', JSON.stringify(structuredOutput.reasoningSteps, null, 2));
-  } else {
-    console.log('Error: Final answer tool was not called.');
-    console.log('Final Text:', text); // Log text for debugging
-    console.log('All Tool Calls:', toolCalls); // Log all calls for debugging
-  }
-  console.log('------------------------------');
-}
-
-solveAndStructure("Revenue $10k, COGS $4.5k, OpEx $2k. Net profit margin %?");
-```
-*Note:* Success depends heavily on the model's ability to follow the prompt instructing it to use the specific answer tool *last*. `toolChoice: 'required'` ensures *a* tool is called last, but the prompt guides *which* tool.
-
-#### 7.6.2. Accessing Intermediate Steps (`steps` Property)
-
-**The "Why":** When an agent takes multiple steps, especially autonomously, understanding *how* it arrived at the result is crucial for debugging, evaluation, and building trust. You need to see the intermediate thoughts, actions, and observations.
-
-**The Solution:** The result object returned by `generateText` (when `maxSteps > 0`) includes a `steps` property. This is an array containing the detailed history of the execution flow, step-by-step.
-
-Each element in the `steps` array represents one turn and includes:
-*   `type`: 'text', 'tool-calls', or 'tool-results'.
-*   The corresponding data (`text`, `toolCalls`, or `toolResults`).
-*   `usage`: Token usage for that specific step.
-
-```typescript
-// Building on the multi-step example:
-async function solveAndShowSteps(prompt: string) {
-  const { text, finishReason, steps } = await generateText({
-    model: model,
-    tools: { calculator: calculator },
-    maxSteps: 5,
-    system: 'Solve step-by-step, use calculator.',
-    prompt: prompt,
-  });
-
-  console.log('Final Text:', text);
-  console.log('Finish Reason:', finishReason);
-
-  console.log('\n--- Execution Steps Trace ---');
-  steps.forEach((step, index) => {
-    console.log(`Step ${index + 1}:`);
-    console.log(`  Type: ${step.type}`);
-    if (step.type === 'text') {
-      console.log(`  LLM Text Output: "${step.text}"`);
-    } else if (step.type === 'tool-calls') {
-      // Log the arguments the LLM decided to use for the tool
-      console.log(`  LLM Tool Calls: ${JSON.stringify(step.toolCalls)}`);
-    } else if (step.type === 'tool-results') {
-      // Log the actual result returned by the tool's execute function
-      console.log(`  Tool Results Received: ${JSON.stringify(step.toolResults)}`);
-    }
-    console.log(`  Usage for Step: ${JSON.stringify(step.usage)}`);
-    console.log('  --------------------');
-  });
-  console.log('--------------------------');
-}
-
-solveAndShowSteps("Calculate (15 * 4) + (100 / 5)");
-```
-
-#### 7.6.3. Callback on Step Completion (`onStepFinish`)
-
-**The "Why":** Sometimes you need to react *during* the agent's execution, not just inspect the `steps` array afterwards. You might want to log progress to a database, update a UI with intermediate status, save state, or even potentially interrupt the flow based on an intermediate result.
-
-**The Solution:** Provide an `async` callback function to the `onStepFinish` option in `generateText` or `streamText`. This function receives the `TextStep` object (which contains the details of the step that just finished) allowing you to perform side effects.
-
-```typescript
-import { generateText, TextStep } from 'ai';
-// Assume model and calculator tool defined
-
-async function solveWithStepCallback(prompt: string) {
-  let stepCounter = 0;
-
-  console.log(`Solving with step callback: ${prompt}`);
-  const result = await generateText({
-    model: model,
-    tools: { calculator: calculator },
-    maxSteps: 5,
-    system: 'Solve step-by-step, use calculator.',
-    prompt: prompt,
-    // This callback runs after each LLM response or tool execution completes
-    onStepFinish: async (step: TextStep) => {
-      stepCounter++;
-      console.log(`\n---> Finishing Step ${stepCounter} (Type: ${step.type}) <---`);
-      // You can inspect step.text, step.toolCalls, step.toolResults, step.usage etc.
-      // Example: Log tool calls as they happen
-      if (step.type === 'tool-calls') {
-         console.log(`  [Callback] LLM calling tools: ${JSON.stringify(step.toolCalls)}`);
-      }
-      // Example: Log tool results as they are received
-      if (step.type === 'tool-results') {
-          console.log(`  [Callback] Received tool results: ${JSON.stringify(step.toolResults)}`);
-      }
-      // Add custom logic: save to DB, update UI status, etc.
-      // await logStepToDatabase(step);
-      console.log(`----------------------------------------`);
-    },
-  });
-
-  console.log('\nFinal Agent Result:', result.text);
-}
-
-solveWithStepCallback("What is 25% of 80?");
-```
-
-### 7.7. Handling State and History (`responseMessages`)
-
-**The "Why":** In multi-step tool usage (`maxSteps > 1`), the LLM needs the full context of the conversation, including the tool calls it made and the results it received, to reason effectively in subsequent steps. Simply appending the final `text` output isn't enough.
-
-**The Solution:** The result object from `generateText` (and the `onFinish` event for `streamText`) contains `responseMessages`. This is an array of `CoreMessage` objects representing *all* the messages generated during *that specific multi-step call* by the assistant, including:
-*   The assistant message(s) containing `toolCalls`.
-*   The corresponding `tool` role messages containing the `toolResults`.
-*   The final assistant message containing the textual response (`text`).
-
-**Crucially, you should append this entire `responseMessages` array to your existing conversation history** before making the *next* call to the agent, ensuring it has the complete context.
-
-```typescript
-import { generateText, CoreMessage } from 'ai';
-import { openai } from '@ai-sdk/openai';
-// Assume model and calculator tool are defined
-
-async function runMultiStepChatTurn(messages: CoreMessage[]): Promise<CoreMessage[]> {
-  console.log("--- Running Agent Turn ---");
-  console.log("Input Messages:", messages);
-
-  const result = await generateText({
-    model: model,
-    tools: { calculator: calculator },
-    maxSteps: 5,
-    messages: messages, // Pass the current complete history
-  });
-
-  console.log("\nAgent's Final Text Output:", result.text);
-  console.log("Messages generated this turn (responseMessages):", result.responseMessages);
-
-  // **Correct History Update:** Append ALL messages from this turn
-  const updatedMessages = [...messages, ...result.responseMessages];
-
-  console.log("\nUpdated Full Message History:", updatedMessages);
-  console.log("--------------------------\n");
-  return updatedMessages; // Return the new history for the next turn
-}
-
-// Example Usage
-async function simulateChat() {
-  let conversationHistory: CoreMessage[] = [
-    { role: 'user', content: 'What is 5 + 7?' }
-  ];
-  conversationHistory = await runMultiStepChatTurn(conversationHistory);
-  // Output: History includes user msg, assistant tool call, tool result, assistant answer.
-
-  // Add another user message
-  conversationHistory.push({ role: 'user', content: 'Now multiply that result by 3.' });
-  conversationHistory = await runMultiStepChatTurn(conversationHistory);
-  // Output: History includes previous turn + new user msg, assistant tool call, tool result, assistant answer.
-}
-
-// simulateChat();
-```
-
-### 7.8. Controlling Tool Usage (`toolChoice`)
-
-**The "Why":** You might not always want the LLM to freely decide whether or how to use tools. You might need to force a specific tool, prevent tool use entirely, or guarantee that *some* tool is used.
-
-**The Solution:** The `toolChoice` parameter guides the LLM's tool usage:
-
-*   `'auto'` (Default): The LLM decides whether to call a tool from the provided `tools` list or respond with text. Most flexible.
-*   `'required'`: Forces the LLM to call *one* of the available tools. Useful with the "Structured Final Answer" pattern (7.6.1) or when the primary task *must* involve a tool.
-*   `'none'`: Prevents the LLM from calling *any* tools, even if provided in the `tools` list. It must respond with text only.
-*   `{ type: 'tool', toolName: 'yourToolName' }`: Forces the LLM to call the *specific* tool named `yourToolName`.
-*   `{ type: 'function', functionName: 'yourFuncName' }`: Deprecated alias for the above.
-
-```typescript
-// Force the model to call the 'calculator' tool
-const { toolCalls } = await generateText({
-  model: model,
-  tools: { calculator: calculator },
-  prompt: "Calculate 100 / 4 please.",
-  // Why: Ensure the calculator is used for this specific request.
-  toolChoice: { type: 'tool', toolName: 'calculator' }
-});
-console.log('Forced Tool Call:', toolCalls);
-
-// Prevent any tool usage, even if calculator is available
-const { text, toolCalls: noToolCalls } = await generateText({
-    model: model,
-    tools: { calculator: calculator },
-    prompt: "What is 2+2? Just give me the text answer.",
-    // Why: Ensure a direct text response without involving tools.
-    toolChoice: 'none'
-});
-console.log('No Tool Call Response:', text); // Should be '4' or similar text
-console.log('Tool Calls Made:', noToolCalls); // Should be undefined or empty
-```
-
-### 7.9. Toolkits
-
-Combine your custom tools with pre-built sets of tools (toolkits) from various providers that integrate with the AI SDK standard (e.g., agentic.ai, Composio, Browserbase). This can quickly add capabilities like web browsing, file system access, or interacting with specific APIs (Gmail, GitHub, etc.). Check the Vercel AI SDK documentation or toolkit providers for integration details.
-
-### 7.10. Generative UI (`streamUI`)
-
-A specialized use of the tool mechanism where tools don't `execute` backend logic but instead `generate` UI components (e.g., React Server Components). The LLM decides which UI component "tool" to call based on the conversation, allowing for dynamic, AI-driven interface generation. See `streamUI` documentation for details.
-
-### 7.11. Agent Evaluation & Debugging
-
-Evaluating agentic systems is challenging but essential.
-
-*   **Key Metrics:**
-    *   *Task Success:* Did the agent achieve the overall goal?
-    *   *Tool Use Quality:* Correct tool selection? Correct arguments? Avoided hallucinating calls?
-    *   *Efficiency:* Steps/tokens used? Latency? Cost?
-    *   *Robustness:* How does it handle errors or unexpected tool results?
-*   **Debugging with the SDK:**
-    *   **Inspect `steps`:** The primary way to trace the agent's reasoning and actions (See 7.6.2). Look at the sequence of text, tool calls, and tool results.
-    *   **Use `onStepFinish`:** Log detailed information *during* execution for real-time monitoring (See 7.6.3).
-    *   **Tool Logging:** Add extensive logging *inside* your tool's `execute` functions to see inputs and outputs.
-    *   **Examine `responseMessages`:** Ensure the correct history, including tool interactions, is maintained between turns (See 7.7).
-*   **External Tools:** Consider platforms like LangSmith for more advanced tracing and evaluation capabilities.
-
-## 8. Streaming Fundamentals
-
-These hooks provide powerful building blocks for creating engaging and interactive AI-powered user interfaces with significantly less boilerplate code.
-
-## 7. Agentic Systems: Enabling AI Actions and Complex Tasks
-
-**Learning Objectives:** By the end of this section, you should be able to:
-*   Explain what constitutes an "agentic" AI system and why it's needed.
-*   Identify the core building blocks of agents: single-step generation, tool usage, and multi-step execution.
-*   Describe common agent patterns like sequential processing, routing, and evaluation loops.
-*   Define tools using the `tool` helper, including descriptions and Zod parameter schemas.
-*   Use tools with `generateText` and `streamText`.
-*   Implement multi-step tool usage with `maxSteps` to solve complex problems.
-*   Structure final agent answers using a dedicated "answer tool" and `toolChoice: 'required'`.
-*   Inspect agent execution using the `steps` property and `onStepFinish` callback for debugging and observability.
-*   Manage conversation history correctly in multi-step scenarios using `responseMessages`.
-*   Control when and how an agent uses tools via the `toolChoice` parameter.
-
-**The "Why":** Beyond Conversation and Generation
 
 So far, we've seen how to generate text, structured data, and build interactive UIs. But what if you need the AI to do more than just *respond*? What if you need it to **take actions**, interact with external systems, or solve problems that require multiple steps and access to real-time information or specific capabilities?
 
